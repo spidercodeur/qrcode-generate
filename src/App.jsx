@@ -110,18 +110,7 @@ function App() {
           <option value={6}>6 (41x41)</option>
         </select>
 
-        <div className="quiet-zone">
-          <label htmlFor="margin">Quiet zone</label>
-          <select
-            id="margin"
-            value={margin}
-            onChange={(e) => setMargin(Number(e.target.value))}
-          >
-            <option value={2}>2</option>
-            <option value={3}>3</option>
-            <option value={4}>4</option>
-          </select>
-        </div>
+
       </div>
 
       <div className="qr-container">
