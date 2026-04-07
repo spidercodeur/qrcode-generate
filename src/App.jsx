@@ -7,22 +7,19 @@ const drawLogo = (canvas, version, margin) => {
     const img = new Image()
     img.onload = () => {
       const ctx = canvas.getContext('2d')
-      // qrcode lib sets canvas.width = scale * totalModules (exact integer)
       const totalModules = (17 + 4 * version) + 2 * margin
-      const mod = canvas.width / totalModules  // exact, no rounding error
+      const mod = canvas.width / totalModules
 
-      // White rect = odd number of modules (~21% of data area) for symmetric centering
       const dataModules = 17 + 4 * version
       let rectMods = Math.round(dataModules * 0.2)
       if (rectMods % 2 === 0) rectMods++
 
       const centerMod = margin + Math.floor(dataModules / 2)
       const halfRect = Math.floor(rectMods / 2)
-      const rx = (centerMod - halfRect) * mod  // exact module boundary
+      const rx = (centerMod - halfRect) * mod
       const ry = (centerMod - halfRect) * mod
       const rectPx = rectMods * mod
 
-      // Logo inset by 1 module on each side
       const logoSize = (rectMods - 2) * mod
       const logoOffset = mod
 
@@ -36,8 +33,27 @@ const drawLogo = (canvas, version, margin) => {
   })
 }
 
+const buildVcard = ({ lastName, firstName, phone, website, email, organization }) => {
+  const fullName = [firstName, lastName].filter(Boolean).join(' ')
+  if (!fullName && !phone && !website && !email && !organization) return ''
+  const lines = [
+    'BEGIN:VCARD',
+    'VERSION:3.0',
+    `N:${lastName};${firstName};;;`,
+    `FN:${fullName}`,
+  ]
+  if (organization) lines.push(`ORG:${organization}`)
+  if (phone) lines.push(`TEL:${phone}`)
+  if (email) lines.push(`EMAIL:${email}`)
+  if (website) lines.push(`URL:${website}`)
+  lines.push('END:VCARD')
+  return lines.join('\n')
+}
+
 function App() {
+  const [mode, setMode] = useState('url')
   const [url, setUrl] = useState('')
+  const [contact, setContact] = useState({ lastName: '', firstName: '', phone: '', website: '', email: '', organization: '' })
   const [errorLevel, setErrorLevel] = useState('M')
   const [version, setVersion] = useState(4)
   const [margin, setMargin] = useState(2)
@@ -47,6 +63,10 @@ function App() {
 
   const effectiveErrorLevel = withLogo ? 'H' : errorLevel
   const qrOptions = { errorCorrectionLevel: effectiveErrorLevel, version, margin }
+
+  const qrContent = mode === 'url' ? url : buildVcard(contact)
+
+  const setContactField = (field) => (e) => setContact((prev) => ({ ...prev, [field]: e.target.value }))
 
   const findMinVersion = async (text, level) => {
     for (let v = 2; v <= 6; v++) {
@@ -61,14 +81,14 @@ function App() {
   }
 
   useEffect(() => {
-    if (url && canvasRef.current) {
+    if (qrContent && canvasRef.current) {
       setError('')
-      QRCode.toCanvas(canvasRef.current, url, { ...qrOptions, width: 256 })
+      QRCode.toCanvas(canvasRef.current, qrContent, { ...qrOptions, width: 256 })
         .then(async () => {
           if (withLogo) await drawLogo(canvasRef.current, version, margin)
         })
         .catch(async () => {
-          const minVersion = await findMinVersion(url, effectiveErrorLevel)
+          const minVersion = await findMinVersion(qrContent, effectiveErrorLevel)
           if (minVersion && minVersion <= 6) {
             setVersion(minVersion)
           } else {
@@ -76,14 +96,14 @@ function App() {
           }
         })
     }
-  }, [url, errorLevel, version, margin, withLogo])
+  }, [qrContent, errorLevel, version, margin, withLogo])
 
   const downloadPng = async () => {
     const offscreen = document.createElement('canvas')
     offscreen.width = 500
     offscreen.height = 500
     try {
-      await QRCode.toCanvas(offscreen, url, { ...qrOptions, width: 500 })
+      await QRCode.toCanvas(offscreen, qrContent, { ...qrOptions, width: 500 })
       if (withLogo) await drawLogo(offscreen, version, margin)
       const dataUrl = offscreen.toDataURL('image/png')
       const link = document.createElement('a')
@@ -95,7 +115,7 @@ function App() {
 
   const downloadSvg = async () => {
     try {
-      const svg = await QRCode.toString(url, { ...qrOptions, type: 'svg' })
+      const svg = await QRCode.toString(qrContent, { ...qrOptions, type: 'svg' })
       if (!withLogo) {
         const blob = new Blob([svg], { type: 'image/svg+xml' })
         const link = document.createElement('a')
@@ -113,13 +133,12 @@ function App() {
       const logoViewBox = logoSvgEl.getAttribute('viewBox')
       const logoInner = logoSvgEl.innerHTML
 
-      // In the qrcode SVG, viewBox units = modules (1 unit = 1 module)
       const dataModules = 17 + 4 * version
       let rectMods = Math.round(dataModules * 0.21)
       if (rectMods % 2 === 0) rectMods++
       const centerMod = margin + Math.floor(dataModules / 2)
       const halfRect = Math.floor(rectMods / 2)
-      const rectX = centerMod - halfRect  // integer → exact module boundary
+      const rectX = centerMod - halfRect
       const rectY = centerMod - halfRect
       const logoX = rectX + 1
       const logoY = rectY + 1
@@ -140,16 +159,60 @@ function App() {
     <div className="container">
       <h1>QR Code Generator</h1>
 
-      <div className="form-group">
-        <label htmlFor="url">URL</label>
-        <input
-          id="url"
-          type="text"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://example.com"
-        />
+      <div className="mode-tabs">
+        <button
+          className={mode === 'url' ? 'active' : ''}
+          onClick={() => setMode('url')}
+        >
+          URL
+        </button>
+        <button
+          className={mode === 'contact' ? 'active' : ''}
+          onClick={() => setMode('contact')}
+        >
+          Contact
+        </button>
       </div>
+
+      {mode === 'url' ? (
+        <div className="form-group">
+          <label htmlFor="url">URL</label>
+          <input
+            id="url"
+            type="text"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://example.com"
+          />
+        </div>
+      ) : (
+        <div className="contact-grid">
+          <div className="form-group">
+            <label>Prénom</label>
+            <input type="text" value={contact.firstName} onChange={setContactField('firstName')} placeholder="Jean" />
+          </div>
+          <div className="form-group">
+            <label>Nom</label>
+            <input type="text" value={contact.lastName} onChange={setContactField('lastName')} placeholder="Dupont" />
+          </div>
+          <div className="form-group">
+            <label>Organisation</label>
+            <input type="text" value={contact.organization} onChange={setContactField('organization')} placeholder="Entreprise" />
+          </div>
+          <div className="form-group">
+            <label>Téléphone</label>
+            <input type="tel" value={contact.phone} onChange={setContactField('phone')} placeholder="+33 6 00 00 00 00" />
+          </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input type="email" value={contact.email} onChange={setContactField('email')} placeholder="jean@example.com" />
+          </div>
+          <div className="form-group">
+            <label>Site internet</label>
+            <input type="url" value={contact.website} onChange={setContactField('website')} placeholder="https://example.com" />
+          </div>
+        </div>
+      )}
 
       <div className="options-grid">
         <label htmlFor="errorLevel">Correction</label>
@@ -191,17 +254,19 @@ function App() {
       </div>
 
       <div className="qr-container">
-        {url ? (
+        {qrContent ? (
           <>
             <canvas ref={canvasRef} />
             {error && <div className="error">{error}</div>}
           </>
         ) : (
-          <div className="placeholder">Entrez une URL pour générer le QR code</div>
+          <div className="placeholder">
+            {mode === 'url' ? 'Entrez une URL pour générer le QR code' : 'Remplissez au moins un champ pour générer le QR code'}
+          </div>
         )}
       </div>
 
-      {url && !error && (
+      {qrContent && !error && (
         <div className="download-buttons">
           <button onClick={downloadPng}>Télécharger PNG (500x500)</button>
           <button onClick={downloadSvg}>Télécharger SVG</button>

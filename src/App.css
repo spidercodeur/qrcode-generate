@@ -10,6 +10,46 @@ h1 {
   font-size: 1.5rem;
 }
 
+.mode-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #ccc;
+}
+
+.mode-tabs button {
+  flex: 1;
+  padding: 0.5rem;
+  border: none;
+  background: #f5f5f5;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #555;
+}
+
+.mode-tabs button.active {
+  background: #646cff;
+  color: white;
+  font-weight: 600;
+}
+
+.mode-tabs button:hover:not(.active) {
+  background: #e8e8e8;
+}
+
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.contact-grid .form-group:last-child {
+  grid-column: 1 / -1;
+}
+
 .form-group {
   margin-bottom: 0.75rem;
 }
