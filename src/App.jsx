@@ -55,7 +55,7 @@ function App() {
   const [url, setUrl] = useState('')
   const [contact, setContact] = useState({ lastName: '', firstName: '', phone: '', website: '', email: '', organization: '' })
   const [errorLevel, setErrorLevel] = useState('M')
-  const [version, setVersion] = useState(4)
+  const [version, setVersion] = useState(1)
   const [margin, setMargin] = useState(2)
   const [error, setError] = useState('')
   const [withLogo, setWithLogo] = useState(false)
@@ -69,7 +69,7 @@ function App() {
   const setContactField = (field) => (e) => setContact((prev) => ({ ...prev, [field]: e.target.value }))
 
   const findMinVersion = async (text, level) => {
-    for (let v = 2; v <= 6; v++) {
+    for (let v = 1; v <= 40; v++) {
       try {
         await QRCode.toString(text, { errorCorrectionLevel: level, version: v })
         return v
@@ -89,7 +89,7 @@ function App() {
         })
         .catch(async () => {
           const minVersion = await findMinVersion(qrContent, effectiveErrorLevel)
-          if (minVersion && minVersion <= 6) {
+          if (minVersion) {
             setVersion(minVersion)
           } else {
             setError('Données trop longues pour les versions disponibles')
@@ -234,11 +234,9 @@ function App() {
           value={version}
           onChange={(e) => setVersion(Number(e.target.value))}
         >
-          <option value={2}>2 (25x25)</option>
-          <option value={3}>3 (29x29)</option>
-          <option value={4}>4 (33x33)</option>
-          <option value={5}>5 (37x37)</option>
-          <option value={6}>6 (41x41)</option>
+          {Array.from({ length: 40 }, (_, i) => i + 1).map((v) => (
+            <option key={v} value={v}>{v} ({(17 + 4 * v)}x{(17 + 4 * v)})</option>
+          ))}
         </select>
 
         <label htmlFor="withLogo">Logo</label>
